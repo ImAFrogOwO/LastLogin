@@ -11,7 +11,7 @@ const UserStore = Webpack.getStore('UserStore');
 
 class LastOnline {
   constructor() {
-    this.t = null;
+    this.presenceEventListener = null;
     this.statuses = [];
     this.patches = [];
     this.classes = {};
@@ -46,7 +46,7 @@ class LastOnline {
       const funcName = Object.keys(theModule).find(prop => theFilter(theModule[prop]));
       return { funcName, theFunc: theModule[funcName], theModule };
     })();
-    this.t = event => {
+    this.presenceEventListener = event => {
       const userId = event.updates[0].user.id;
       const status = event.updates[0].status;
 
@@ -72,10 +72,10 @@ class LastOnline {
       console.log(this.statuses);
     };
 
-    BdApi.Webpack.getModule(e => e.dispatch && !e.emitter && !e.commands).subscribe("PRESENCE_UPDATES", this.t);
+    BdApi.Webpack.getModule(e => e.dispatch && !e.emitter && !e.commands).subscribe("PRESENCE_UPDATES", this.presenceEventListener);
     const usernameCreatorModule = this.usernameCreatorModuleGetter;
     this.addPatch("after", usernameCreatorModule.theModule, usernameCreatorModule.funcName, (_, args, ret) => {
-      // console.log("patch worked!", ret);
+      console.log("patch worked!", ret);
       const targetProps = ret.props.children.props.children[0].props.children.props.children[0].props.children;
       /**
        * display: inline-flex;
@@ -88,7 +88,7 @@ class LastOnline {
   }
 
   stop() {
-    BdApi.Webpack.getModule(e => e.dispatch && !e.emitter && !e.commands).unsubscribe("PRESENCE_UPDATES", this.t);
+    BdApi.Webpack.getModule(e => e.dispatch && !e.emitter && !e.commands).unsubscribe("PRESENCE_UPDATES", this.presenceEventListener);
     this.patches.forEach(x => x());
   }
 }
