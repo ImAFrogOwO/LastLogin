@@ -14,6 +14,7 @@ class LastOnline {
     this.t = null;
     this.statuses = [];
     this.patches = [];
+    this.classes = {};
   }
 
   getAllUsers() {
@@ -33,6 +34,8 @@ class LastOnline {
   }
 
   start() {
+    this.classes["defCol1"] = BdApi.Webpack.getModule(x => x.defaultColor && x.tabularNumbers).defaultColor;
+    this.classes["defCol2"] = BdApi.Webpack.getModule(x => x.defaultColor && !x.tabularNumbers && !x.error).defaultColor;
     this.usernameCreatorModuleGetter = (() => {
       const theString = `"User Tag"`;
       const theFilter = x2 => x2 && x2.toString?.().includes(theString); // I don't trust the BD's byString filter
@@ -72,7 +75,15 @@ class LastOnline {
     BdApi.Webpack.getModule(e => e.dispatch && !e.emitter && !e.commands).subscribe("PRESENCE_UPDATES", this.t);
     const usernameCreatorModule = this.usernameCreatorModuleGetter;
     this.addPatch("after", usernameCreatorModule.theModule, usernameCreatorModule.funcName, (_, args, ret) => {
-      console.log("patch worked!", ret);
+      // console.log("patch worked!", ret);
+      const targetProps = ret.props.children.props.children[0].props.children.props.children[0].props.children;
+      /**
+       * display: inline-flex;
+       * margin-left: 5px;
+       */
+      const modProps = [targetProps, BdApi.React.createElement("h1", { style: { display: "inline-flex", marginLeft: "5px" }, className: `${this.classes["defCol1"]} ${this.classes["defCol2"]}` }, "test")];
+      ret.props.children.props.children[0].props.children.props.children[0].props.children = modProps;
+      return ret;
     });
   }
 
