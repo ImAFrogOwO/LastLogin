@@ -81,7 +81,7 @@ class LastOnline {
             let a = {
               userId,
               user,
-              newDate: new Date(),
+              newDate: new Date().getTime(),
             };
             // BdApi.Data.save("LastOnline", userId, JSON.stringify(a))
             this.saveToData(userId, a);
@@ -123,7 +123,7 @@ class LastOnline {
             style: { display: "inline-flex", marginLeft: "5px", fontSize: "smaller" },
             className: `${this.classes["defCol1"]} ${this.classes["defCol2"]}`,
           },
-          lastTimeOnline ? "Last Online: " + lastTimeOnline.toLocaleString() : "Last Online: None"
+          lastTimeOnline ? "Last Online: " + new Date(lastTimeOnline) : "Last Online: Now"
         ),
       ];
 
