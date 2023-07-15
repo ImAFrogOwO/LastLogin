@@ -15,10 +15,23 @@ class LastOnline {
     this.statuses = [];
     this.patches = [];
     this.classes = {};
+    this.cache = {};
   }
 
   getAllUsers() {
     return PresenceStore.getUserIds();
+  }
+
+  saveToData(prop, val) {
+    this.cache[prop] = val;
+    this._lastSaveTime = this._lastSaveTime ?? Date.now();
+    if (Date.now() - this._lastSaveTime > 300000) // 5 mins
+    // if (Date.now() - this._lastSaveTime > 10) // 10 ms
+    {
+      console.log("%c[LastOnline]%c Saving data to file...", "color: blue;", "color: initial;");
+      BdApi.Data.save("LastOnline", "data", this.cache);
+      this._lastSaveTime = Date.now();
+    }
   }
 
   /**
@@ -34,6 +47,7 @@ class LastOnline {
   }
 
   start() {
+    this.cache = BdApi.Data.load("LastOnline", "data") ?? {};
     this.classes["defCol1"] = BdApi.Webpack.getModule(x => x.defaultColor && x.tabularNumbers).defaultColor;
     this.classes["defCol2"] = BdApi.Webpack.getModule(x => x.defaultColor && !x.tabularNumbers && !x.error).defaultColor;
     this.usernameCreatorModuleGetter = (() => {
@@ -59,12 +73,18 @@ class LastOnline {
           const user = UserStore.getUser(userId);
 
           if (user) {
-            let a = [...this.statuses, {
+            // let a = [...this.statuses, {
+            //   userId,
+            //   user,
+            //   newDate: new Date()
+            // }];
+            let a = {
               userId,
               user,
-              newDate: new Date()
-            }];
-            BdApi.Data.save("LastOnline", userId, JSON.stringify(a))
+              newDate: new Date(),
+            };
+            // BdApi.Data.save("LastOnline", userId, JSON.stringify(a))
+            this.saveToData(userId, a);
           }
         }
       }
@@ -82,11 +102,13 @@ class LastOnline {
       const userId = args[0]?.user?.id;
 
       let lastOnlineData;
-      try {
-        lastOnlineData = JSON.parse(BdApi.Data.load("LastOnline", userId));
-      } catch (error) {
-        lastOnlineData = "None";
-      }
+      // try {
+      //   // lastOnlineData = JSON.parse(BdApi.Data.load("LastOnline", userId));
+      //   lastOnlineData = this.cache[userId];
+      // } catch (error) {
+      //   lastOnlineData = "None";
+      // }
+      lastOnlineData = this.cache[userId] ?? "None";
 
       const offlineData = this.statuses.find((user) => user.userId === userId);
       const offlineDate = offlineData ? offlineData.newDate : lastOnlineData.newDate;
@@ -113,6 +135,7 @@ class LastOnline {
   stop() {
     BdApi.Webpack.getModule(e => e.dispatch && !e.emitter && !e.commands).unsubscribe("PRESENCE_UPDATES", this.presenceEventListener);
     this.patches.forEach(x => x());
+    BdApi.Data.save("LastOnline", "data", this.cache);
   }
 }
 
