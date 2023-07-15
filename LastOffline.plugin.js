@@ -11,6 +11,7 @@ const UserStore = Webpack.getStore('UserStore');
 
 class LastOnline {
   constructor() {
+    this.name = LastOnline.name;
     this.presenceEventListener = null;
     this.statuses = [];
     this.patches = [];
@@ -28,8 +29,8 @@ class LastOnline {
     if (Date.now() - this._lastSaveTime > 300000) // 5 mins
     // if (Date.now() - this._lastSaveTime > 10) // 10 ms
     {
-      console.log("%c[LastOnline]%c Saving data to file...", "color: blue;", "color: initial;");
-      BdApi.Data.save("LastOnline", "data", this.cache);
+      console.log(`%c[${this.name}]%c Saving data to file...`, "color: blue;", "color: initial;");
+      BdApi.Data.save(this.name, "data", this.cache);
       this._lastSaveTime = Date.now();
     }
   }
@@ -42,12 +43,12 @@ class LastOnline {
    */
   addPatch(patchType, moduleToPatch, functionName, callback) {
     this.patches.push(
-      (BdApi.Patcher[patchType])("LastOnline", moduleToPatch, functionName, callback)
+      (BdApi.Patcher[patchType])(this.name, moduleToPatch, functionName, callback)
     );
   }
 
   start() {
-    this.cache = BdApi.Data.load("LastOnline", "data") ?? {};
+    this.cache = BdApi.Data.load(this.name, "data") ?? {};
     this.classes["defCol1"] = BdApi.Webpack.getModule(x => x.defaultColor && x.tabularNumbers).defaultColor;
     this.classes["defCol2"] = BdApi.Webpack.getModule(x => x.defaultColor && !x.tabularNumbers && !x.error).defaultColor;
     this.usernameCreatorModuleGetter = (() => {
@@ -96,7 +97,7 @@ class LastOnline {
     BdApi.Webpack.getModule(e => e.dispatch && !e.emitter && !e.commands).subscribe("PRESENCE_UPDATES", this.presenceEventListener);
     const usernameCreatorModule = this.usernameCreatorModuleGetter;
     this.addPatch("after", usernameCreatorModule.theModule, usernameCreatorModule.funcName, (_, args, ret) => {
-      console.log("patch worked!", ret);
+      // console.log("patch worked!", ret);
       const targetProps = ret.props.children.props.children[0].props.children.props.children[0].props.children;
 
       const userId = args[0]?.user?.id;
@@ -135,7 +136,7 @@ class LastOnline {
   stop() {
     BdApi.Webpack.getModule(e => e.dispatch && !e.emitter && !e.commands).unsubscribe("PRESENCE_UPDATES", this.presenceEventListener);
     this.patches.forEach(x => x());
-    BdApi.Data.save("LastOnline", "data", this.cache);
+    BdApi.Data.save(this.name, "data", this.cache);
   }
 }
 
