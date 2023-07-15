@@ -39,7 +39,7 @@ class LastOnline {
     this.usernameCreatorModuleGetter = (() => {
       const theString = `"User Tag"`;
       const theFilter = x2 => x2 && x2.toString?.().includes(theString); // I don't trust the BD's byString filter
-      const theFilterMain = x => x && Object.values(x).some(theFilter);
+      const theFilterMain = x => x && Object.values(x).some(theFilter); // Haha xDD
       const theModule = BdApi.Webpack.getModule(theFilterMain);
       // return Object.values(BdApi.Webpack.getModule(theFilterMain)).filter(theFilter)[0];
       // return Object.keys(obj).find(prop => obj[prop].toString?.().includes(theString));
@@ -59,11 +59,12 @@ class LastOnline {
           const user = UserStore.getUser(userId);
 
           if (user) {
-            this.statuses.push({
-              userId,
-              user,
-              newDate: new Date()
-            });
+            let a = [...this.statuses, {
+                userId,
+                user,
+                newDate: new Date()
+              }];        
+            BdApi.Data.save("LastOnline",userId,JSON.stringify(a))
           }
         }
       }
@@ -75,16 +76,39 @@ class LastOnline {
     BdApi.Webpack.getModule(e => e.dispatch && !e.emitter && !e.commands).subscribe("PRESENCE_UPDATES", this.presenceEventListener);
     const usernameCreatorModule = this.usernameCreatorModuleGetter;
     this.addPatch("after", usernameCreatorModule.theModule, usernameCreatorModule.funcName, (_, args, ret) => {
-      console.log("patch worked!", ret);
-      const targetProps = ret.props.children.props.children[0].props.children.props.children[0].props.children;
-      /**
-       * display: inline-flex;
-       * margin-left: 5px;
-       */
-      const modProps = [targetProps, BdApi.React.createElement("h1", { style: { display: "inline-flex", marginLeft: "5px" }, className: `${this.classes["defCol1"]} ${this.classes["defCol2"]}` }, "test")];
-      ret.props.children.props.children[0].props.children.props.children[0].props.children = modProps;
-      return ret;
-    });
+        console.log("patch worked!", ret);
+        const targetProps = ret.props.children.props.children[0].props.children.props.children[0].props.children;
+      
+        const userId = args[0]?.user?.id;
+      
+        let lastOnlineData;
+        try {
+          lastOnlineData = JSON.parse(BdApi.Data.load("LastOnline", userId));
+        } catch (error) {
+          lastOnlineData = "None";
+        }
+      
+        const offlineData = this.statuses.find((user) => user.userId === userId);
+        const offlineDate = offlineData ? offlineData.newDate : lastOnlineData.newDate;
+      
+        const lastTimeOnline = offlineDate || lastOnlineData.newDate;
+      
+        const modProps = [
+          targetProps,
+          BdApi.React.createElement(
+            "h1",
+            {
+              style: { display: "inline-flex", marginLeft: "5px", fontSize: "smaller" },
+              className: `${this.classes["defCol1"]} ${this.classes["defCol2"]}`,
+            },
+            lastTimeOnline ? "Last Online: " + lastTimeOnline.toLocaleString() : "Last Online: None"
+          ),
+        ];
+      
+        ret.props.children.props.children[0].props.children.props.children[0].props.children = modProps;
+        return ret;
+      });
+    
   }
 
   stop() {
