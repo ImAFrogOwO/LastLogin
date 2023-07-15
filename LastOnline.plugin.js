@@ -91,7 +91,7 @@ class LastOnline {
         const offlineData = this.statuses.find((user) => user.userId === userId);
         const offlineDate = offlineData ? offlineData.newDate : lastOnlineData.newDate;
       
-        const lastTimeOnline = offlineDate || lastOnlineData.newDate;
+        const lastTimeOnline = offlineDate || lastOnlineData.newDate; // Use lastTimeOnline variable
       
         const modProps = [
           targetProps,
@@ -108,7 +108,9 @@ class LastOnline {
         ret.props.children.props.children[0].props.children.props.children[0].props.children = modProps;
         return ret;
       });
-    
+      
+      
+      
   }
 
   stop() {
