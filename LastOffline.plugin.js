@@ -13,26 +13,15 @@ class LastOnline {
   constructor() {
     this.name = LastOnline.name;
     this.presenceEventListener = null;
-    this.statuses = [];
     this.patches = [];
     this.classes = {};
-    this.cache = {};
-  }
-
-  getAllUsers() {
-    return PresenceStore.getUserIds();
+    this.cache = BdApi.Data.load(this.name, "data") ?? {};
+    this.getStatusOfUser = BdApi.Webpack.getStore("PresenceStore").getStatus;
   }
 
   saveToData(prop, val) {
     this.cache[prop] = val;
-    this._lastSaveTime = this._lastSaveTime ?? Date.now();
-    if (Date.now() - this._lastSaveTime > 300000) // 5 mins
-    // if (Date.now() - this._lastSaveTime > 10) // 10 ms
-    {
-      console.log(`%c[${this.name}]%c Saving data to file...`, "color: blue;", "color: initial;");
-      BdApi.Data.save(this.name, "data", this.cache);
-      this._lastSaveTime = Date.now();
-    }
+    BdApi.Data.save(this.name, "data", this.cache);
   }
 
   /**
@@ -48,16 +37,13 @@ class LastOnline {
   }
 
   start() {
-    this.cache = BdApi.Data.load(this.name, "data") ?? {};
     this.classes["defCol1"] = BdApi.Webpack.getModule(x => x.defaultColor && x.tabularNumbers).defaultColor;
     this.classes["defCol2"] = BdApi.Webpack.getModule(x => x.defaultColor && !x.tabularNumbers && !x.error).defaultColor;
     this.usernameCreatorModuleGetter = (() => {
       const theString = `"User Tag"`;
-      const theFilter = x2 => x2 && x2.toString?.().includes(theString); // I don't trust the BD's byString filter
-      const theFilterMain = x => x && Object.values(x).some(theFilter); // Haha xDD
+      const theFilter = x2 => x2 && x2.toString?.().includes(theString);
+      const theFilterMain = x => x && Object.values(x).some(theFilter);
       const theModule = BdApi.Webpack.getModule(theFilterMain);
-      // return Object.values(BdApi.Webpack.getModule(theFilterMain)).filter(theFilter)[0];
-      // return Object.keys(obj).find(prop => obj[prop].toString?.().includes(theString));
       const funcName = Object.keys(theModule).find(prop => theFilter(theModule[prop]));
       return { funcName, theFunc: theModule[funcName], theModule };
     })();
@@ -65,71 +51,57 @@ class LastOnline {
       const userId = event.updates[0].user.id;
       const status = event.updates[0].status;
 
-      const userIndex = this.statuses.findIndex(user => user.userId === userId);
+      if (status === 'offline' && !this.cache[userId]) {
+        const user = UserStore.getUser(userId);
 
-      if (status === 'offline') {
-        if (userIndex !== -1) {
-          this.statuses[userIndex].newDate = new Date();
-        } else {
-          const user = UserStore.getUser(userId);
-
-          if (user) {
-            // let a = [...this.statuses, {
-            //   userId,
-            //   user,
-            //   newDate: new Date()
-            // }];
-            let a = {
-              userId,
-              user,
-              newDate: new Date().getTime(),
-            };
-            // BdApi.Data.save("LastOnline", userId, JSON.stringify(a))
-            this.saveToData(userId, a);
-          }
+        if (user) {
+          const a = {
+            userId,
+            user,
+            newDate: new Date().getTime(),
+          };
+          this.saveToData(userId, a);
         }
       }
-
-      console.log(`${UserStore.getUser(event.updates[0].user.id)} has went ${status}`);
-      console.log(this.statuses);
     };
 
     BdApi.Webpack.getModule(e => e.dispatch && !e.emitter && !e.commands).subscribe("PRESENCE_UPDATES", this.presenceEventListener);
-    const usernameCreatorModule = this.usernameCreatorModuleGetter;
-    this.addPatch("after", usernameCreatorModule.theModule, usernameCreatorModule.funcName, (_, args, ret) => {
-      // console.log("patch worked!", ret);
-      const targetProps = ret.props.children.props.children[0].props.children.props.children[0].props.children;
-
-      const userId = args[0]?.user?.id;
-
-      let lastOnlineData;
-      // try {
-      //   // lastOnlineData = JSON.parse(BdApi.Data.load("LastOnline", userId));
-      //   lastOnlineData = this.cache[userId];
-      // } catch (error) {
-      //   lastOnlineData = "None";
-      // }
-      lastOnlineData = this.cache[userId] ?? "None";
-
-      const offlineData = this.statuses.find((user) => user.userId === userId);
-      const offlineDate = offlineData ? offlineData.newDate : lastOnlineData.newDate;
-
-      const lastTimeOnline = offlineDate || lastOnlineData.newDate; // Use lastTimeOnline variable
-
-      const modProps = [
-        targetProps,
-        BdApi.React.createElement(
+    const getUsernameProps = (lastTimeOnline, targetProps, userId) => [
+      targetProps,
+      BdApi.React.createElement(
           "h1",
           {
-            style: { display: "inline-flex", marginLeft: "5px", fontSize: "smaller" },
-            className: `${this.classes["defCol1"]} ${this.classes["defCol2"]}`,
+            style: { 
+              display: "inline-flex",
+              marginLeft: '15px',
+              fontSize: "17px",
+              fontFamily: "Cosmic Sans, sans-serif",
+            },
+          className: `${this.classes["defCol1"]} ${this.classes["defCol2"]}`,
           },
-          lastTimeOnline ? "Last Online: " + new Date(lastTimeOnline) : "Last Online: Now"
-        ),
-      ];
+          lastTimeOnline ? "Last Online: " + new Date(lastTimeOnline).toLocaleTimeString() : this.getStatusOfUser(userId)
+      ),
+  ];
 
-      ret.props.children.props.children[0].props.children.props.children[0].props.children = modProps;
-      return ret;
+
+    const usernameCreatorModule = this.usernameCreatorModuleGetter;
+
+    this.addPatch("after", usernameCreatorModule.theModule, usernameCreatorModule.funcName, (_, args, ret) => {
+        const { id: userId } = args[0]?.user || {};
+
+        if (this.getStatusOfUser(userId) !== "offline") {
+            return ret;
+        }
+
+        const { newDate } = this.cache[userId] || (this.cache[userId] = "None");
+        const lastTimeOnline = newDate || this.cache[userId].newDate;
+
+        const targetProps = ret.props.children.props.children[0].props.children.props.children[0].props.children;
+        const modProps = getUsernameProps(lastTimeOnline, targetProps, userId);
+
+        ret.props.children.props.children[0].props.children.props.children[0].props.children = modProps;
+
+        return ret;
     });
   }
 
