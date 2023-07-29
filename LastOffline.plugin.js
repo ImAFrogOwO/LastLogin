@@ -15,13 +15,22 @@ class LastOnline {
     this.presenceEventListener = null;
     this.patches = [];
     this.classes = {};
-    this.cache = BdApi.Data.load(this.name, "data") ?? {};
+    // this.cache = BdApi.Data.load(this.name, "data") ?? {};
+    this.cache = {};
     this.getStatusOfUser = BdApi.Webpack.getStore("PresenceStore").getStatus;
   }
 
-  saveToData(prop, val) {
+  saveData(prop, val) {
     this.cache[prop] = val;
-    BdApi.Data.save(this.name, "data", this.cache);
+    // BdApi.Data.save(this.name, "data", this.cache);
+    this._lastSaveTime = this._lastSaveTime ?? Date.now();
+    if (Date.now() - this._lastSaveTime > 300000) // 5 mins
+    // if (Date.now() - this._lastSaveTime > 10) // 10 ms
+    {
+      console.log(`%c[${this.name}]%c Saving data to file...`, "color: blue;", "color: initial;");
+      BdApi.Data.save(this.name, "data", this.cache);
+      this._lastSaveTime = Date.now();
+    }
   }
 
   /**
@@ -37,6 +46,7 @@ class LastOnline {
   }
 
   start() {
+    this.cache = BdApi.Data.load(this.name, "data") ?? {};
     this.classes["defCol1"] = BdApi.Webpack.getModule(x => x.defaultColor && x.tabularNumbers).defaultColor;
     this.classes["defCol2"] = BdApi.Webpack.getModule(x => x.defaultColor && !x.tabularNumbers && !x.error).defaultColor;
     this.usernameCreatorModuleGetter = (() => {
@@ -51,7 +61,7 @@ class LastOnline {
       const userId = event.updates[0].user.id;
       const status = event.updates[0].status;
 
-      if (status === 'offline' && !this.cache[userId]) {
+      if (status === 'offline') {
         const user = UserStore.getUser(userId);
 
         if (user) {
@@ -60,7 +70,7 @@ class LastOnline {
             user,
             newDate: new Date().getTime(),
           };
-          this.saveToData(userId, a);
+          this.saveData(userId, a);
         }
       }
     };
@@ -75,7 +85,7 @@ class LastOnline {
       const formattedTime = date.toLocaleTimeString();
       return `${formattedDate} ${formattedTime}`;
     };
-    
+
     const getUsernameProps = (lastTimeOnline, targetProps, userId) => [
       targetProps,
       BdApi.React.createElement(
@@ -89,30 +99,30 @@ class LastOnline {
           },
           className: `${this.classes["defCol1"]} ${this.classes["defCol2"]}`,
         },
-        lastTimeOnline ? "Last Online: " + formatDateAndTime(new Date(lastTimeOnline)) : this.getStatusOfUser(userId)
+        lastTimeOnline ? "Last Offline: " + formatDateAndTime(new Date(lastTimeOnline)) : this.getStatusOfUser(userId)
       ),
     ];
-    
-
 
     const usernameCreatorModule = this.usernameCreatorModuleGetter;
 
     this.addPatch("after", usernameCreatorModule.theModule, usernameCreatorModule.funcName, (_, args, ret) => {
-        const { id: userId } = args[0]?.user || {};
+      const { id: userId } = args[0]?.user || {};
 
-        if (this.getStatusOfUser(userId) !== "offline") {
-            return ret;
-        }
-
-        const { newDate } = this.cache[userId] || (this.cache[userId] = "None");
-        const lastTimeOnline = newDate || this.cache[userId].newDate;
-
-        const targetProps = ret.props.children.props.children[0].props.children.props.children[0].props.children;
-        const modProps = getUsernameProps(lastTimeOnline, targetProps, userId);
-
-        ret.props.children.props.children[0].props.children.props.children[0].props.children = modProps;
-
+      // if (this.getStatusOfUser(userId) !== "offline") {
+      //     return ret;
+      // }
+      if (this.getStatusOfUser(userId) == "offline")
         return ret;
+
+      const { newDate } = this.cache[userId] || (this.cache[userId] = "None");
+      const lastTimeOnline = newDate || this.cache[userId].newDate;
+
+      const targetProps = ret.props.children.props.children[0].props.children.props.children[0].props.children;
+      const modProps = getUsernameProps(lastTimeOnline, targetProps, userId);
+
+      ret.props.children.props.children[0].props.children.props.children[0].props.children = modProps;
+
+      return ret;
     });
   }
 
