@@ -99,7 +99,7 @@ class LastOnline {
           },
           className: `${this.classes["defCol1"]} ${this.classes["defCol2"]}`,
         },
-        lastTimeOnline ? "Last Offline: " + formatDateAndTime(new Date(lastTimeOnline)) : this.getStatusOfUser(userId)
+        lastTimeOnline ? "Last Online: " + formatDateAndTime(new Date(lastTimeOnline)) : this.getStatusOfUser(userId)
       ),
     ];
 
@@ -108,11 +108,11 @@ class LastOnline {
     this.addPatch("after", usernameCreatorModule.theModule, usernameCreatorModule.funcName, (_, args, ret) => {
       const { id: userId } = args[0]?.user || {};
 
-      // if (this.getStatusOfUser(userId) !== "offline") {
-      //     return ret;
-      // }
-      if (this.getStatusOfUser(userId) == "offline")
+      if (this.getStatusOfUser(userId) !== "offline") {
         return ret;
+      }
+      // if (this.getStatusOfUser(userId) == "offline")
+      //   return ret;
 
       const { newDate } = this.cache[userId] || (this.cache[userId] = "None");
       const lastTimeOnline = newDate || this.cache[userId].newDate;
