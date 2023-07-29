@@ -124,6 +124,38 @@ class LastOnline {
 
       return ret;
     });
+
+    (async () => {
+      this.secondUsernameCreatorModuleGetter = await (async () => {
+        const theFilter1 = x => x && x.toString?.().includes("Messages.USER_PROFILE_MODAL") && x.toString?.().includes(".USER_INFO_CONNECTIONS");
+        const theModule = await BdApi.Webpack.waitForModule(x2 => x2 && !x2.ensureModule && typeof x2 == 'object' && !x2.entries && !x2.exportTypedArrayStaticMethod && Object.values(x2).some(theFilter1));
+        const funcName = Object.keys(theModule).filter(x => theFilter1(theModule[x]));
+        return { funcName, theFunc: theModule[funcName], theModule };
+      })();
+
+      const secondUsernameCreatorModule = this.secondUsernameCreatorModuleGetter;
+
+      this.addPatch("after", secondUsernameCreatorModule.theModule, secondUsernameCreatorModule.funcName, (_, args, ret) => {
+        let unp = BdApi.Patcher.after(this.name, ret.props.children.props.children.props.children.props.children[1].props.children[1].props.children[0], "type", (_, args2, ret2) => {
+          // console.log("patched successfully!", ret2, args2);
+          const { id: userId } = args2[0]?.user || {};
+
+          if (this.getStatusOfUser(userId) !== "offline") {
+            return ret2;
+          }
+          // if (this.getStatusOfUser(userId) == "offline")
+          //   return ret;
+
+          const { newDate } = this.cache[userId] || (this.cache[userId] = "None");
+          const lastTimeOnline = newDate || this.cache[userId].newDate;
+          const targetProps = ret2.props.children[1].props.children[0].props.children;
+          const modProps = getUsernameProps(lastTimeOnline, targetProps, userId);
+
+          ret2.props.children[1].props.children[0].props.children = modProps;
+          unp();
+        });
+      });
+    })();
   }
 
   stop() {
