@@ -1,7 +1,7 @@
 /**
  * @name LastOffline
  * @description Allows you to see when someone went last offline.
- * @author davilarek, _ninelota_
+ * @author davilarek, imafrogowo
  * @version 1.0.0
  */
 
@@ -66,22 +66,33 @@ class LastOnline {
     };
 
     BdApi.Webpack.getModule(e => e.dispatch && !e.emitter && !e.commands).subscribe("PRESENCE_UPDATES", this.presenceEventListener);
+    const formatDateAndTime = (date) => {
+      const monthNames = [
+        'January', 'February', 'March', 'April', 'May', 'June',
+        'July', 'August', 'September', 'October', 'November', 'December'
+      ];
+      const formattedDate = `${monthNames[date.getMonth()]} ${date.getDate()}, ${date.getFullYear()}`;
+      const formattedTime = date.toLocaleTimeString();
+      return `${formattedDate} ${formattedTime}`;
+    };
+    
     const getUsernameProps = (lastTimeOnline, targetProps, userId) => [
       targetProps,
       BdApi.React.createElement(
-          "h1",
-          {
-            style: { 
-              display: "inline-flex",
-              marginLeft: '15px',
-              fontSize: "17px",
-              fontFamily: "Cosmic Sans, sans-serif",
-            },
-          className: `${this.classes["defCol1"]} ${this.classes["defCol2"]}`,
+        "h1",
+        {
+          style: {
+            display: "inline-flex",
+            marginLeft: '15px',
+            fontSize: "17px",
+            fontFamily: "Cosmic Sans, sans-serif",
           },
-          lastTimeOnline ? "Last Online: " + new Date(lastTimeOnline).toLocaleTimeString() : this.getStatusOfUser(userId)
+          className: `${this.classes["defCol1"]} ${this.classes["defCol2"]}`,
+        },
+        lastTimeOnline ? "Last Online: " + formatDateAndTime(new Date(lastTimeOnline)) : this.getStatusOfUser(userId)
       ),
-  ];
+    ];
+    
 
 
     const usernameCreatorModule = this.usernameCreatorModuleGetter;
